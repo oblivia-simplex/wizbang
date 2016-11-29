@@ -12,6 +12,7 @@ data StatEnum = Strength
               | Luck 
               deriving (Show, Enum, Eq)
 
+showHex :: (Integral a) => a -> String
 showHex = (`Numeric.showHex` "") . toInteger . fromIntegral
 
 pretty :: Word32 -> IO ()
