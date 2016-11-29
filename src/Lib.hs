@@ -14,6 +14,10 @@ data StatEnum = Strength
 
 showHex = (`Numeric.showHex` "") . toInteger . fromIntegral
 
+pretty :: Word32 -> IO ()
+pretty word = mapM_ (putStrLn . showStat word) [Strength .. Luck]
+  where showStat w s = show s ++ ": " ++ show (stats w !! fromEnum s)
+
 masksFor :: StatEnum -> [(Int, Int)]
 masksFor s = case s of
   Strength     -> [(24,29)]
@@ -29,6 +33,7 @@ stats w = map (fromIntegral . maskS w . masksFor) [Strength .. Luck]
 en :: (Enum a, Enum b) => a -> b
 en = toEnum . fromEnum
 
+-- | For reading:
 mask :: (Integral a, Bits a) => a -> Int -> Int -> a
 mask w low high
   | low > high = error "Lower bound higher than upper bound"
@@ -37,6 +42,11 @@ mask w low high
   where highmask :: (Integral a) => a
         highmask = (2^high)-1
 
+maskS :: (Integral a, Bits a) => a -> [(Int, Int)] -> a
+maskS _ [] = 0
+maskS w ((i,j):ms) = mask w i j .|. (maskS w ms `shiftL` (j-i))
+
+-- | For writing:
 stamp :: (Integral a, Bits a) => a -> [(Int, Int)] -> a
 stamp val idxs  = foldr (.|.) 0 (st val idxs)
   where st :: (Integral a, Bits a) => a -> [(Int, Int)] -> [a]
@@ -47,9 +57,3 @@ stamp val idxs  = foldr (.|.) 0 (st val idxs)
 stampW :: (Integral a, Bits a) => a -> [(Int, Int)] -> a -> a
 stampW val idxs orig = stamp 0xFF idxs `xor` orig .|. stamp val idxs
 
-maskS :: (Integral a, Bits a) => a -> [(Int, Int)] -> a
-maskS _ [] = 0
-maskS w ((i,j):ms) = mask w i j .|. (maskS w ms `shiftL` (j-i))
-
--- v 
--- gold is just a little-endian integer starting at name_len + 0x34

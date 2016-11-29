@@ -1,10 +1,11 @@
 module Main where
 
 import Lib
+import Data.Word
 
-petra = 0xe7292721
+petra   = 0xe7292721 :: Word32
+perfect = 0x524a524a :: Word32
 
 main :: IO ()
-main = mapM_ putStrLn $ map (showStat petra) [Strength .. Luck]
-  where showStat w s = (show s) ++ ": " ++ (show $ stats w !! fromEnum s)
+main = pretty petra
 
