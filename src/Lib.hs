@@ -2,7 +2,8 @@ module Lib where
 import Data.Word
 import Data.Bits
 import qualified Numeric (showHex)
-
+import qualified Data.ByteString.Char8 as B 
+import Text.Regex.PCRE
 
 data StatEnum = Strength
               | Intelligence
@@ -57,4 +58,8 @@ stamp val idxs  = foldr (.|.) 0 (st val idxs)
 
 stampW :: (Integral a, Bits a) => a -> [(Int, Int)] -> a -> a
 stampW val idxs orig = stamp 0xFF idxs `xor` orig .|. stamp val idxs
+
+
+-- | Seeking
+
 
