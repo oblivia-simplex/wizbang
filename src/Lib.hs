@@ -5,6 +5,8 @@ import qualified Numeric (showHex)
 import qualified Data.ByteString.Char8 as B 
 import Text.Regex.PCRE
 
+data Status = ALIVE | DEAD | LOST | CORRUPTED Int deriving (Show, Eq)
+
 data StatEnum = Strength
               | Intelligence
               | Piety
@@ -27,7 +29,8 @@ masksFor s = case s of
   Luck         -> [(2,7)]
 
 stats :: Word32 -> [Int]
-stats w = map (fromIntegral . maskS w . masksFor) [Strength .. Luck]
+stats w = map (fromIntegral . maskS w . masksFor) 
+          [Strength .. Luck]
 
 en :: (Enum a, Enum b) => a -> b
 en = toEnum . fromEnum
@@ -56,7 +59,6 @@ stamp val idxs  = foldr (.|.) 0 (st val idxs)
 stampW :: (Integral a, Bits a) => a -> [(Int, Int)] -> a -> a
 stampW val idxs orig = stamp 0xFF idxs `xor` orig .|. stamp val idxs
 
-
 -- | Seeking
 -- | Finds the offset of the end of the character's name
 seekName :: String -> B.ByteString -> Int
@@ -64,9 +66,11 @@ seekName name dsk = fst ((dsk =~ B.pack name) :: (Int, Int))
 
 -- | The DWORD containing the stats appears 0x25 bytes after the end of
 -- | the character's name
-statsDwordFor :: String -> B.ByteString -> Word32
-statsDwordFor name dsk = readWord (B.drop (seekName name dsk + (statOffset name)) dsk :: B.ByteString)
-  where statOffset nm = if (even $ length nm) then 0x2B else 0x2A
+statsDwordFor :: Int -> B.ByteString -> Word32
+statsDwordFor offset dsk = 
+  readWord (B.drop (offset + statOffset) dsk)
+  where statOffset = 
+          0x2B - (nameLen offset dsk `mod` 2)
 
 -- reads a big endian word from the first four bytes of a bytestring
 readWord :: B.ByteString -> Word32
@@ -76,6 +80,23 @@ readWord bs = (head bsl   `shiftL` 24) .|.
               (bsl !! 3)
               where bsl = map ((.&. 0xFF) . en) $ B.unpack bs
 
-statsFor :: String -> B.ByteString -> [Int]
-statsFor name bs = stats $ statsDwordFor name bs
+statsFor :: Int -> B.ByteString -> [Int]
+statsFor offset bs = stats $ statsDwordFor offset bs
 
+getPassword :: Int -> B.ByteString -> String
+getPassword offset bs =
+  B.unpack $ B.take len $ B.drop (0x10 + offset) bs
+  where len = en (bs `B.index` (0x0F + offset)) 
+
+nameLen :: Int -> B.ByteString -> Int
+nameLen offset bs = en $ bs `B.index` (offset - 1)
+
+isAlive :: Int -> B.ByteString -> Status
+isAlive offset bs = 
+  let byte = en (bs `B.index` (offset + 0x27 - 
+                                (nameLen offset bs `mod` 2)))
+  in case byte of
+    0x00 -> ALIVE
+    0x05 -> DEAD
+    0x07 -> LOST
+    _    -> CORRUPTED byte

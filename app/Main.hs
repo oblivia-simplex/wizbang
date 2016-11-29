@@ -3,6 +3,7 @@ module Main where
 import Lib
 import Data.Word
 import qualified Data.ByteString.Char8 as B
+import Data.Char
 
 petra   = 0xe7292721 :: Word32
 perfect = 0x524a524a :: Word32
@@ -15,9 +16,13 @@ main :: IO ()
 main = do
   b <- B.readFile "data/WIZ1.DSK"
   putStr "NAME > "
-  name <- getLine
-  --putStrLn "-=-=-=-=-= STATS FOR " ++ name ++ " =-=-=-=-=-"
-  putStrLn $ "[+] READING CHARACTER DATA FROM OFFSET " ++ showHex (seekName name b)
-  putStrLn $ "[+] PARSING DWORD " ++ showHex (statsDwordFor name b)
-  pretty $ statsFor name b
+  name   <- (fmap . fmap) toUpper getLine
+  let offset = seekName name b
+  putStrLn $ "-=-=-=-=-=-=-= STATS FOR " ++ name ++ " =-=-=-=-=-=-=-"
+  putStrLn $ "[+] READING CHARACTER DATA FROM OFFSET " 
+             ++ showHex offset
+  putStrLn $ "[+] PASSWORD: " ++ getPassword offset b
+  putStrLn $ "[+] PARSING DWORD " ++ showHex (statsDwordFor offset b)
+  pretty $ statsFor offset b
+  putStrLn $ "[+] STATUS: " ++ show (isAlive offset b)
 
