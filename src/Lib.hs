@@ -16,9 +16,6 @@ data StatEnum = Strength
 showHex :: (Integral a) => a -> String
 showHex = (`Numeric.showHex` "") . toInteger . fromIntegral
 
-pretty :: Word32 -> IO ()
-pretty word = mapM_ (putStrLn . showStat word) [Strength .. Luck]
-  where showStat w s = show s ++ ": " ++ show (stats w !! fromEnum s)
 
 masksFor :: StatEnum -> [(Int, Int)]
 masksFor s = case s of
@@ -61,5 +58,24 @@ stampW val idxs orig = stamp 0xFF idxs `xor` orig .|. stamp val idxs
 
 
 -- | Seeking
+-- | Finds the offset of the end of the character's name
+seekName :: String -> B.ByteString -> Int
+seekName name dsk = fst ((dsk =~ B.pack name) :: (Int, Int))
 
+-- | The DWORD containing the stats appears 0x25 bytes after the end of
+-- | the character's name
+statsDwordFor :: String -> B.ByteString -> Word32
+statsDwordFor name dsk = readWord (B.drop (seekName name dsk + (statOffset name)) dsk :: B.ByteString)
+  where statOffset nm = if (even $ length nm) then 0x2B else 0x2A
+
+-- reads a big endian word from the first four bytes of a bytestring
+readWord :: B.ByteString -> Word32
+readWord bs = (head bsl   `shiftL` 24) .|.
+              ((bsl !! 1) `shiftL` 16) .|.
+              ((bsl !! 2) `shiftL` 8) .|.
+              (bsl !! 3)
+              where bsl = map ((.&. 0xFF) . en) $ B.unpack bs
+
+statsFor :: String -> B.ByteString -> [Int]
+statsFor name bs = stats $ statsDwordFor name bs
 
